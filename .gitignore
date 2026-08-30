@@ -1,0 +1,17 @@
+# 依赖
+node_modules/
+
+# 构建产物：bundled 引擎 + 便携 Node，由 packaging/build.ps1 重新生成（约 300MB，不入库）
+desktop/resources/
+
+# 打包输出（.exe 等，约 1GB，不入库；请用 GitHub Releases 分发）
+dist/
+
+# 日志与临时文件
+*.log
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/

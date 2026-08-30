@@ -1,0 +1,16 @@
+# DeepSeek Harness 桌面端插件 —— bundle patch。
+#
+# 可分发 bundle：`dsh plugin add @adrainlin/dsh-desktop-plugin` 会把本文件加进
+# profile 的 `dsh.profile.bundles`（npm 分发路径）。
+#
+# 自包含桌面壳不依赖 npm 发布：打包脚本把插件作为「包」复制进引擎的 node_modules
+# （resources/dsh/node_modules/@adrainlin/dsh-desktop-plugin/），桌面壳启动时生成
+# 一个引用裸包名的运行时 patch 通过 `--patch` 传入。
+#
+# 关键：`name` 必须用裸包名（而非 file:// URL）——实测 Client 模块扫描器只认包名
+# （经 node_modules 解析到 package.json 的 dsh.client 声明），file:// URL 只能让
+# Host 半部加载、Client 半部不会被扫描进 __DSH_BOOT__。
+
+- insert:
+    - id: desktop-plugin
+      name: '@adrainlin/dsh-desktop-plugin'

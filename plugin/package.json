@@ -1,0 +1,30 @@
+{
+  "name": "@adrainlin/dsh-desktop-plugin",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness 桌面端插件：用户（API key/余额/充值）、背景图、关于（创作者/时间/版本/检查更新）",
+  "type": "module",
+  "main": "src/host.js",
+  "exports": {
+    ".": "./src/host.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/host.js",
+    "src/client.js",
+    "lib/client.js",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "license": "MIT",
+  "author": "Adrain Lin"
+}
