@@ -112,7 +112,8 @@ function dshArgs() {
 function startDsh() {
   ensureDshHome()
   ensurePluginInstalled()
-  const env = { ...process.env, DSH_HOME }
+  // 把应用版本号传给引擎，让插件「关于」页显示的版本号与 package.json 一致。
+  const env = { ...process.env, DSH_HOME, DSH_DESKTOP_VERSION: DESKTOP_VERSION }
   const args = dshArgs()
   const stdio = ['ignore', 'pipe', 'pipe']
   // 引擎输出写进日志文件，便于在打包应用（无控制台）里排查。
