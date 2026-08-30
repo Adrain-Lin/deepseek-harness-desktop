@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "自包含的 DeepSeek Harness 桌面端：Electron 原生窗口承载官方 dsh web 引擎",
   "author": "Adrain Lin",
   "license": "MIT",

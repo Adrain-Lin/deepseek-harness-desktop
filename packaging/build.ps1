@@ -1,4 +1,4 @@
-# packaging/build.ps1
+﻿# packaging/build.ps1
 #
 # 一键构建 + 打包桌面端。
 #
@@ -84,6 +84,9 @@ try {
   }
   else {
     npx electron-builder --win
+  }
+  if ($LASTEXITCODE -ne 0) {
+    throw "electron-builder 打包失败（exit $LASTEXITCODE）"
   }
 }
 finally { Pop-Location }

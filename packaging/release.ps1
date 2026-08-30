@@ -1,4 +1,4 @@
-# packaging/release.ps1
+﻿# packaging/release.ps1
 #
 # 一键发版：改版本号 → 打包 → 生成 GitHub Release 上传指引（装了 gh CLI 则自动发）。
 #
@@ -29,7 +29,8 @@ $Tag = "v$Version"
 
 # 2) 改版本号（desktop/package.json 的第一个 version 字段）
 $pkgPath = Join-Path $Desktop 'package.json'
-$content = Get-Content $pkgPath -Raw
+# 用 UTF-8 显式读取，避免 Windows PowerShell 按 GBK 读乱中文
+$content = [System.IO.File]::ReadAllText($pkgPath)
 $old = ([regex]::Match($content, '"version"\s*:\s*"([^"]+)"')).Groups[1].Value
 if ($old -eq $Version) {
   Write-Host "==> 版本已是 $Version，跳过改写"
@@ -43,6 +44,10 @@ else {
 # 3) 打包
 Write-Host "==> 打包（会花几分钟）..."
 & (Join-Path $PSScriptRoot 'build.ps1') -LaunchMode bundled
+if ($LASTEXITCODE -ne 0) {
+  Write-Error "打包失败（exit $LASTEXITCODE），已停止。"
+  exit 1
+}
 
 # 4) 找到 Setup 安装包，复制成无空格/无中文的干净文件名（避免下载链接被 URL 编码）
 $setup = Get-ChildItem $Dist -File -Filter '*.exe' |
