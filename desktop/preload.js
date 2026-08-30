@@ -6,6 +6,9 @@
  *   window.desktopApp.installUpdate(url) -> 下载并运行安装包（返回 { ok, path, error? }）
  *   window.desktopApp.onUpdateProgress(cb) -> 订阅下载进度 { received, total, pct }，返回取消函数
  *   window.desktopApp.recharge()         -> { url }
+ *   window.desktopApp.getBackground()    -> 返回持久化的背景 data URL（无则 null）
+ *   window.desktopApp.setBackground(dataUrl) -> 持久化背景 data URL
+ *   window.desktopApp.clearBackground()  -> 清除持久化的背景
  */
 
 'use strict'
@@ -22,4 +25,7 @@ contextBridge.exposeInMainWorld('desktopApp', {
     return () => ipcRenderer.removeListener('update:progress', listener)
   },
   recharge: () => ipcRenderer.invoke('desktop:recharge'),
+  getBackground: () => ipcRenderer.invoke('desktop:bg:get'),
+  setBackground: (dataUrl) => ipcRenderer.invoke('desktop:bg:set', dataUrl),
+  clearBackground: () => ipcRenderer.invoke('desktop:bg:clear'),
 })

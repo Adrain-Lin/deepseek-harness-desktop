@@ -198,23 +198,51 @@ window.__ModuleLoader__.load({
 			document.querySelectorAll('style[' + attr + ']').forEach(function (n) { n.remove(); });
 		}
 
+		// 持久化：桌面端优先走 Electron IPC 存到 userData 文件，浏览器模式回退 localStorage。
+		// 不能只用 localStorage：dsh web 用 --port 0 每次随机端口，localStorage 按 origin（含端口）
+		// 隔离，重启后端口变了，上次存的背景就读不回来。
+		function getStoredBg() {
+			if (window.desktopApp && typeof window.desktopApp.getBackground === 'function') {
+				return window.desktopApp.getBackground().then(function (v) { return v || null; }).catch(function () { return null; });
+			}
+			return Promise.resolve(localStorage.getItem(BG_KEY) || null);
+		}
+		function setStoredBg(dataUrl) {
+			if (window.desktopApp && typeof window.desktopApp.setBackground === 'function') {
+				window.desktopApp.setBackground(dataUrl).catch(function () {});
+			} else {
+				localStorage.setItem(BG_KEY, dataUrl);
+			}
+		}
+		function clearStoredBg() {
+			if (window.desktopApp && typeof window.desktopApp.clearBackground === 'function') {
+				window.desktopApp.clearBackground().catch(function () {});
+			} else {
+				localStorage.removeItem(BG_KEY);
+			}
+		}
+
 		function setBackground(dataUrl, theme) {
 			removeInjected('data-desktop-bg');
 			injectStyle(backgroundCss(dataUrl), 'data-desktop-bg');
 			backgroundTokens(theme);
-			localStorage.setItem(BG_KEY, dataUrl);
+			setStoredBg(dataUrl);
 		}
 
 		function clearBackground(theme) {
 			removeInjected('data-desktop-bg');
 			if (bgTokenDisposer) { bgTokenDisposer(); bgTokenDisposer = null; }
-			localStorage.removeItem(BG_KEY);
+			clearStoredBg();
 		}
 
 		function BackgroundRow(props) {
 			var theme = props.theme;
-			var hasBg = React.useState(Boolean(localStorage.getItem(BG_KEY)));
+			var hasBg = React.useState(false);
 			var setHasBg = hasBg[1];
+
+			React.useEffect(function () {
+				getStoredBg().then(function (dataUrl) { setHasBg(Boolean(dataUrl)); });
+			}, []);
 
 			var onPick = function (event) {
 				var file = event.target.files && event.target.files[0];
@@ -242,9 +270,10 @@ window.__ModuleLoader__.load({
 			if (slots === undefined) return;
 			var theme = ctx.get('theme');
 
-			// 恢复上次持久化的背景
-			var savedBg = localStorage.getItem(BG_KEY);
-			if (savedBg) { injectStyle(backgroundCss(savedBg), 'data-desktop-bg'); backgroundTokens(theme); }
+			// 恢复上次持久化的背景（异步从桌面端 userData / localStorage 读取）
+			getStoredBg().then(function (savedBg) {
+				if (savedBg) { injectStyle(backgroundCss(savedBg), 'data-desktop-bg'); backgroundTokens(theme); }
+			});
 
 			slots.inject('settings.section', function () {
 				return slots.register({ name: 'settings.section', id: 'user', order: 5, label: '用户' }, function () { return e(UserSection); });

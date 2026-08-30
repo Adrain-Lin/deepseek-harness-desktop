@@ -10,12 +10,37 @@
  *
  * 说明：本文件是「纯 JS 源」。运行时 React 作为全局提供（动态客户端上下文）；
  * 打包进 monorepo 的 tsdown 客户端时，把 `React` 引用换成 `import React from 'react'` 即可。
- * 背景图用 localStorage 持久化 + styles.insert() 注入全局 CSS。
+ * 背景图持久化：桌面端走 Electron IPC（userData 文件），浏览器回退 localStorage；
+ * CSS 用 styles.insert() 注入全局 CSS。
  */
 
 export const inject = ['slots']
 
 const BG_KEY = 'desktop:background'
+
+// 持久化：桌面端优先走 Electron IPC 存到 userData 文件，浏览器模式回退 localStorage。
+// 不能用 localStorage：dsh web 用 --port 0 每次随机端口，localStorage 按 origin（含端口）
+// 隔离，重启后端口变了，上次存的背景就读不回来。
+function getStoredBg() {
+  if (window.desktopApp && typeof window.desktopApp.getBackground === 'function') {
+    return window.desktopApp.getBackground().then((v) => v || null).catch(() => null)
+  }
+  return Promise.resolve(localStorage.getItem(BG_KEY) || null)
+}
+function setStoredBg(dataUrl) {
+  if (window.desktopApp && typeof window.desktopApp.setBackground === 'function') {
+    window.desktopApp.setBackground(dataUrl).catch(() => {})
+  } else {
+    localStorage.setItem(BG_KEY, dataUrl)
+  }
+}
+function clearStoredBg() {
+  if (window.desktopApp && typeof window.desktopApp.clearBackground === 'function') {
+    window.desktopApp.clearBackground().catch(() => {})
+  } else {
+    localStorage.removeItem(BG_KEY)
+  }
+}
 
 function e(type, props, ...children) {
   return React.createElement(type, props, ...children)
@@ -192,7 +217,11 @@ const BG_INPUT_ID = 'desktop-bg-input'
 
 function BackgroundRow(props) {
   const styles = props.styles
-  const [hasBg, setHasBg] = React.useState(Boolean(localStorage.getItem(BG_KEY)))
+  const [hasBg, setHasBg] = React.useState(false)
+
+  React.useEffect(() => {
+    getStoredBg().then((dataUrl) => setHasBg(Boolean(dataUrl)))
+  }, [])
 
   const applyCss = (css) => {
     if (styles && typeof styles.insert === 'function') {
@@ -219,13 +248,13 @@ function BackgroundRow(props) {
       '  background-image: url("' + dataUrl + '"); background-size:cover; background-position:center; }',
     ].join('\n')
     applyCss(css)
-    localStorage.setItem(BG_KEY, dataUrl)
+    setStoredBg(dataUrl)
     setHasBg(true)
   }
 
   const clearBackground = () => {
     document.querySelectorAll('style[data-desktop-bg]').forEach((n) => n.remove())
-    localStorage.removeItem(BG_KEY)
+    clearStoredBg()
     setHasBg(false)
   }
 
@@ -253,6 +282,29 @@ export function apply(ctx) {
   const slots = ctx.get('slots')
   if (slots === undefined) return
   const styles = ctx.get('styles')
+
+  // 恢复上次持久化的背景（桌面端走 IPC 文件，浏览器回退 localStorage）
+  getStoredBg().then((dataUrl) => {
+    if (!dataUrl) return
+    const css = [
+      'html, body {',
+      '  background-image: url("' + dataUrl + '") !important;',
+      '  background-size: cover !important;',
+      '  background-position: center !important;',
+      '  background-attachment: fixed !important;',
+      '}',
+      'body::before { content:""; position:fixed; inset:0; z-index:-1;',
+      '  background-image: url("' + dataUrl + '"); background-size:cover; background-position:center; }',
+    ].join('\n')
+    if (styles && typeof styles.insert === 'function') {
+      styles.insert(css)
+    } else {
+      const tag = document.createElement('style')
+      tag.setAttribute('data-desktop-bg', '1')
+      tag.textContent = css
+      document.head.appendChild(tag)
+    }
+  })
 
   slots.inject('settings.section', () => slots.register(
     { name: 'settings.section', id: 'user', order: 5, label: '用户' },

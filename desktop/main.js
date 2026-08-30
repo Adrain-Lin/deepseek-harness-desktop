@@ -229,6 +229,40 @@ ipcMain.handle('desktop:recharge', () => {
   return { url: RECHARGE_URL }
 })
 
+// 背景图持久化：存到 userData 下的文件（跨重启保留）。不能依赖 localStorage——
+// 引擎用 `--port 0` 每次随机端口，localStorage 按 origin（含端口）隔离，
+// 重启后端口变了，上次存的背景就读不回来。
+function backgroundFilePath() {
+  return path.join(app.getPath('userData'), 'background')
+}
+
+ipcMain.handle('desktop:bg:get', () => {
+  try {
+    return fs.readFileSync(backgroundFilePath(), 'utf8') || null
+  } catch {
+    return null
+  }
+})
+
+ipcMain.handle('desktop:bg:set', (_event, dataUrl) => {
+  if (typeof dataUrl !== 'string' || !dataUrl) return { ok: false, error: 'empty background' }
+  try {
+    fs.writeFileSync(backgroundFilePath(), dataUrl, 'utf8')
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: String(err && err.message || err) }
+  }
+})
+
+ipcMain.handle('desktop:bg:clear', () => {
+  try {
+    fs.rmSync(backgroundFilePath(), { force: true })
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: String(err && err.message || err) }
+  }
+})
+
 // 检查更新：默认读 GitHub 最新 Release（DEFAULT_UPDATE_URL），也支持普通 { version, url } 清单。
 ipcMain.handle('desktop:update:check', async () => {
   const manifestUrl = process.env.DSH_UPDATE_MANIFEST_URL || DEFAULT_UPDATE_URL
