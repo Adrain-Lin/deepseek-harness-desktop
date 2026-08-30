@@ -55,5 +55,5 @@ npx electron .
 
 ## 分发
 
-见 `docs/build-and-package.md`。核心思路：`packaging/build.ps1` 构建插件 +
+详情见`docs/build-and-package.md`。核心思路：`packaging/build.ps1` 构建插件 +
 打包 Electron 应用（`electron-builder`），产出免安装便携版/安装包。
