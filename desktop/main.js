@@ -38,6 +38,24 @@ const ABOUT = {
 
 const RECHARGE_URL = 'https://platform.deepseek.com/top_up'
 
+// 更新源：默认用 GitHub「最新 Release」接口。把下面两个占位符换成你的 GitHub
+// 用户名和仓库名，用户点「检查更新」就会自动读你仓库的最新 Release 并比对版本，
+// 有新版就下载 .exe 并启动安装（无需手动维护 latest.json）。
+// 也可用环境变量 DSH_UPDATE_MANIFEST_URL 覆盖成一个普通 { version, url } 清单。
+const DEFAULT_UPDATE_URL = 'https://api.github.com/repos/你的用户名/你的仓库名/releases/latest'
+
+// 简单语义化版本比较：a > b 返回 true（如 0.1.10 > 0.1.9）
+function isNewer(a, b) {
+  const pa = String(a).split('.').map((n) => Number(n) || 0)
+  const pb = String(b).split('.').map((n) => Number(n) || 0)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0
+    const y = pb[i] || 0
+    if (x !== y) return x > y
+  }
+  return false
+}
+
 let dshProcess = null
 let mainWindow = null
 let shuttingDown = false
@@ -211,21 +229,34 @@ ipcMain.handle('desktop:recharge', () => {
   return { url: RECHARGE_URL }
 })
 
-// 检查更新：只查发布清单（DSH_UPDATE_MANIFEST_URL 指向 { "version", "url" } 的 JSON）。
-// 未配置时返回「未配置更新源」，不再查 npm（那会误报 dsh 引擎版本）。
+// 检查更新：默认读 GitHub 最新 Release（DEFAULT_UPDATE_URL），也支持普通 { version, url } 清单。
 ipcMain.handle('desktop:update:check', async () => {
-  const manifestUrl = process.env.DSH_UPDATE_MANIFEST_URL
-  if (!manifestUrl) {
-    return { current: DESKTOP_VERSION, latest: null, updateAvailable: false, message: '未配置更新源（可设置 DSH_UPDATE_MANIFEST_URL）' }
+  const manifestUrl = process.env.DSH_UPDATE_MANIFEST_URL || DEFAULT_UPDATE_URL
+  if (!manifestUrl || manifestUrl.includes('你的用户名')) {
+    return { current: DESKTOP_VERSION, latest: null, updateAvailable: false, message: '未配置更新源（请在 main.js 里填写 GitHub 用户名和仓库名）' }
   }
   try {
-    const res = await fetch(manifestUrl)
-    const manifest = await res.json()
+    const res = await fetch(manifestUrl, { headers: { Accept: 'application/vnd.github+json' } })
+    const data = await res.json()
+    // GitHub Release：版本取 tag（去掉 v 前缀），下载地址取第一个 .exe 资产
+    if (data.tag_name) {
+      const latest = String(data.tag_name).replace(/^v/, '')
+      const asset = Array.isArray(data.assets)
+        ? (data.assets.find((a) => /\.exe$/i.test(a.name || '')) || data.assets[0])
+        : null
+      return {
+        current: DESKTOP_VERSION,
+        latest,
+        updateAvailable: Boolean(latest && isNewer(latest, DESKTOP_VERSION)),
+        url: asset ? asset.browser_download_url : null,
+      }
+    }
+    // 普通清单 { version, url }
     return {
       current: DESKTOP_VERSION,
-      latest: manifest.version,
-      updateAvailable: Boolean(manifest.version && manifest.version !== DESKTOP_VERSION),
-      url: manifest.url || null,
+      latest: data.version || null,
+      updateAvailable: Boolean(data.version && isNewer(data.version, DESKTOP_VERSION)),
+      url: data.url || null,
     }
   } catch (err) {
     return { current: DESKTOP_VERSION, latest: null, updateAvailable: false, error: err.message }
