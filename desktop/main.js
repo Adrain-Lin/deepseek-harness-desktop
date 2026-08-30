@@ -38,11 +38,10 @@ const ABOUT = {
 
 const RECHARGE_URL = 'https://platform.deepseek.com/top_up'
 
-// 更新源：默认用 GitHub「最新 Release」接口。把下面两个占位符换成你的 GitHub
-// 用户名和仓库名，用户点「检查更新」就会自动读你仓库的最新 Release 并比对版本，
-// 有新版就下载 .exe 并启动安装（无需手动维护 latest.json）。
+// 更新源：默认读 GitHub「最新 Release」接口（tag 即版本号，自动取 .exe 资产）。
+// 有新版就下载 .exe 并启动安装，无需手动维护 latest.json。
 // 也可用环境变量 DSH_UPDATE_MANIFEST_URL 覆盖成一个普通 { version, url } 清单。
-const DEFAULT_UPDATE_URL = 'https://api.github.com/repos/你的用户名/你的仓库名/releases/latest'
+const DEFAULT_UPDATE_URL = 'https://api.github.com/repos/Adrain-Lin/deepseek-harness-desktop/releases/latest'
 
 // 简单语义化版本比较：a > b 返回 true（如 0.1.10 > 0.1.9）
 function isNewer(a, b) {
@@ -238,6 +237,10 @@ ipcMain.handle('desktop:update:check', async () => {
   try {
     const res = await fetch(manifestUrl, { headers: { Accept: 'application/vnd.github+json' } })
     const data = await res.json()
+    // 还没有发布过 Release（GitHub 返回 404 Not Found）
+    if (!res.ok && data && data.message) {
+      return { current: DESKTOP_VERSION, latest: null, updateAvailable: false, message: '尚未发布任何版本（请先在 GitHub 创建 Release）' }
+    }
     // GitHub Release：版本取 tag（去掉 v 前缀），下载地址取第一个 .exe 资产
     if (data.tag_name) {
       const latest = String(data.tag_name).replace(/^v/, '')
