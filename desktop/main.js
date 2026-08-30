@@ -321,7 +321,17 @@ ipcMain.handle('desktop:update:install', async (event, url) => {
       }
     }
     fs.writeFileSync(dest, Buffer.concat(chunks))
-    shell.openPath(dest)
+    // 启动安装器后退出应用：正在运行的 exe / app.asar / resources 会被占用，
+    // 安装器无法覆盖，表现为「检查到新版但更新后版本没变」。先拉起安装器，
+    // 再延时退出（并回收引擎），释放文件占用，安装器才能顺利完成覆盖。
+    const openError = await shell.openPath(dest)
+    if (openError) {
+      return { ok: false, error: `无法启动安装程序：${openError}` }
+    }
+    setTimeout(() => {
+      stopDsh()
+      app.exit(0)
+    }, 1500)
     return { ok: true, path: dest }
   } catch (err) {
     return { ok: false, error: err.message }

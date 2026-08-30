@@ -49,17 +49,21 @@ if ($LASTEXITCODE -ne 0) {
   exit 1
 }
 
-# 4) 找到 Setup 安装包，复制成无空格/无中文的干净文件名（避免下载链接被 URL 编码）
+# 4) 找到「当前版本」的 Setup 安装包，复制成无空格/无中文的干净文件名（避免下载链接被 URL 编码）。
+# 注意：dist 里会残留历史版本的 Setup exe，Get-ChildItem 默认按名称排序，
+# 若不按版本过滤，`Select-Object -First 1` 会拿到 0.1.0（字母序最靠前），导致发错包。
 $setup = Get-ChildItem $Dist -File -Filter '*.exe' |
-  Where-Object { $_.Name -match 'Setup' -and $_.Name -notmatch 'blockmap' } |
+  Where-Object { $_.Name -match 'Setup' -and $_.Name -match [regex]::Escape($Version) -and $_.Name -notmatch 'blockmap' } |
+  Sort-Object LastWriteTime -Descending |
   Select-Object -First 1
 if (-not $setup) {
-  Write-Error "打包后没找到 Setup exe"
+  Write-Error "打包后没找到版本 $Version 的 Setup exe"
   exit 1
 }
 $cleanName = "DeepSeek.Harness.Setup.$Version.exe"
 $cleanExe = Join-Path $Dist $cleanName
 Copy-Item $setup.FullName $cleanExe -Force
+Write-Host "==> 选中: $($setup.Name)"
 Write-Host "==> 安装包：$cleanExe"
 
 # 5) 发布 Release
