@@ -63,13 +63,10 @@ npx electron .
 
 - DeepSeek Harness —— 本应用的服务内核（MIT）
 - dsh-better-sidebar by omdsh-dev（MIT）
-- dsh-web-ui by zhu1090093659（Apache-2.0）
-- ModLens by liustack（MIT）
-- awesome-dsh-plugin by awesome-dsh-plugin
 - dshmarket by dsh-market（MIT）
 
 ## License
 
 本项目采用 MIT License，© 2026 Adrain Lin。集成的插件遵循各自仓库的许可证
-（dsh-better-sidebar MIT、dsh-web-ui Apache-2.0、ModLens MIT、dshmarket MIT）。
+（dsh-better-sidebar MIT、dshmarket MIT）。
 应用图标源自作者自备的角色设定图。
