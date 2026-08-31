@@ -12,6 +12,12 @@ dist/
 .DS_Store
 Thumbs.db
 
+# 本地临时目录（插件市场调研/冒烟测试/本地 npm 缓存）
+_dsh-market-tmp/
+_dsh-fresh-test/
+_smoke-home/
+.npm-cache/
+
 # 编辑器
 .vscode/
 .idea/

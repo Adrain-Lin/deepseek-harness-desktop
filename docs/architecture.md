@@ -33,10 +33,12 @@
                 ▼
 ┌─────────────────────────────────────────────┐
 │ dsh web 引擎（官方，未修改）                  │
-│  └─ plugin/ (DSH bundle 插件，随壳分发)        │
-│     ├─ Host: /api/desktop/* (余额/关于/更新)  │
-│     └─ Client: settings.section 用户/关于      │
-│                 + settings.general.item 背景   │
+│  ├─ plugin/ (DSH bundle 插件，随壳分发)        │
+│  │  ├─ Host: /api/desktop/* (余额/关于/更新)  │
+│  │  └─ Client: settings.section 用户/关于      │
+│  │              + settings.general.item 背景   │
+│  └─ dshmarket/ (第三方插件市场，随壳分发)      │
+│     └─ Client: 设置 → 插件市场（浏览/一键安装） │
 └─────────────────────────────────────────────┘
 ```
 
@@ -62,6 +64,10 @@
    Node 22+ API（`createZstdDecompress`/`stripTypeScriptTypes`）；故用 Electron 44
    + 独立便携 Node。目标用户免装 Node。插件以「包」形式复制进引擎的 `node_modules`，
    patch 引用**裸包名**（Client 扫描器只认包名、不认 file:// URL）。
+7. **内嵌插件市场**：`dshmarket` 由 `build.ps1` 随引擎 npm 安装（锁定 `1.38.1`），
+   `main.js` 启动时复制进 `$DSH_HOME/profiles/node_modules/` 并在运行时 patch 注入
+   `dshmarket`；`config.allowRestart: false` 让市场不自行重启引擎（生命周期归壳所有，
+   且壳用 `--port 0` 随机端口，市场按原参数重拉会换端口导致窗口失效）。
 
 ## 4. 需求可行性对照
 
@@ -70,4 +76,5 @@
 | 用户：API key + 用量 + 充值跳转 | ✅ key 读凭据、余额调 DeepSeek `GET /user/balance`、充值跳 `platform.deepseek.com/top_up`；⚠️ 公开接口只有「余额」，逐次 token 用量需在网页控制台看 |
 | 外观：背景图覆盖主界面+侧边栏 | ✅ 在浅色/深色/跟随系统之上追加，CSS 注入 + 持久化 |
 | 关于：创作者/时间/版本/检查更新+进度条 | ✅ 创作者 Adrain Lin、时间 2024-11-04、版本号、npm 检查 + 流式下载进度条 |
+| 插件市场：浏览/搜索/一键安装社区插件 | ✅ 内嵌 `dshmarket@1.38.1`，与 bundled 引擎版本完全兼容（cordis 4.0.1 / dsh-settings 0.1.1-rc.2 / schemastery 3.18.1） |
 | 工作区划分 | ✅ 全部落在 `E:\Deepseek Harness_Work\creat_app`，不污染 checkout |

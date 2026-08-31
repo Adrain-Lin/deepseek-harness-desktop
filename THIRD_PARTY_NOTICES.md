@@ -31,3 +31,16 @@ SOFTWARE.
 此外，DeepSeek Harness 还依赖众多第三方库（Electron、React、Cordis、Sharp、
 node-pty、koffi 等）。完整的第三方声明见 DeepSeek Harness 仓库内的
 `THIRD_PARTY_NOTICES.md`：https://github.com/deepseek-ai/deepseek-harness
+
+---
+
+## 插件市场（`dshmarket`）
+
+MIT License
+
+Copyright (c) 2026 fkysly and dsh-market contributors
+
+<https://github.com/dsh-market/dsh-market>
+
+随引擎 npm 安装，运行时依赖 `js-yaml`（MIT）与 `undici`（MIT）。
+上述三个包的完整版权与许可文本随各自 npm 包分发（`LICENSE` / `LICENSE.md`）。

@@ -1,4 +1,4 @@
-﻿# packaging/build.ps1
+# packaging/build.ps1
 #
 # 一键构建 + 打包桌面端。
 #
@@ -28,12 +28,14 @@ $DshDest = Join-Path $Desktop 'resources\dsh'
 New-Item -ItemType Directory -Force -Path $DshDest | Out-Null
 
 if ($LaunchMode -eq 'bundled') {
-  Write-Host "==> 安装 dsh 引擎到 $DshDest ..."
+  Write-Host "==> 安装 dsh 引擎 + 插件市场到 $DshDest ..."
   Push-Location $DshDest
   try {
     npm init -y | Out-Null
-    npm install @deepseek-ai/dsh
-    Write-Host "==> 已安装 $(Get-Content (Join-Path $DshDest 'node_modules\@deepseek-ai\dsh\package.json') | ConvertFrom-Json | Select-Object -ExpandProperty version)"
+    # dshmarket 随引擎一起 npm 安装（含其运行时依赖 js-yaml/undici）。锁定大版本，
+    # 避免上游破坏性变更静默进入发版产物。
+    npm install @deepseek-ai/dsh dshmarket@1.38.1
+    Write-Host "==> 已安装 dsh $((Get-Content (Join-Path $DshDest 'node_modules\@deepseek-ai\dsh\package.json') | ConvertFrom-Json).version) / dshmarket $((Get-Content (Join-Path $DshDest 'node_modules\dshmarket\package.json') | ConvertFrom-Json).version)"
   }
   finally { Pop-Location }
 

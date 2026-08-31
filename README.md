@@ -1,10 +1,11 @@
 # DeepSeek Harness 桌面端
 
-一个自包含的 **DeepSeek Harness（dsh）桌面应用**：用 Electron 原生窗口承载官方 `dsh web` 引擎，并新增三项设置功能：
+一个自包含的 **DeepSeek Harness（dsh）桌面应用**：用 Electron 原生窗口承载官方 `dsh web` 引擎，并新增多项设置功能：
 
 1. **用户** —— 查看当前 DeepSeek API Key（脱敏）、余额/用量、一键跳转充值；
 2. **外观 → 背景** —— 导入图片作为背景，覆盖主界面与侧边栏（在既有的浅色/深色/跟随系统之上追加）；
-3. **关于** —— 创作者 Adrain Lin、创作时间 2024-11-04、版本号、检查更新（带进度条）。
+3. **关于** —— 创作者 Adrain Lin、创作时间 2024-11-04、版本号、检查更新（带进度条）；
+4. **插件市场** —— 内嵌社区插件市场 [`dshmarket`](https://github.com/dsh-market/dsh-market)，在「设置 → 插件市场」浏览 / 搜索 / 一键安装社区插件与主题（bundled 模式内置）。
 
 ## 目录结构
 
@@ -47,11 +48,11 @@ npx electron .
 
 | 模式 | 说明 | 目标用户 |
 | --- | --- | --- |
-| `bundled`（默认） | 引擎随应用打包，用随包便携 Node 运行 | 分发给无 Node 的用户 |
-| `npx` | 首次运行联网 `npx @deepseek-ai/dsh web` | 开发/自用 |
+| `bundled`（默认） | 引擎随应用打包，用随包便携 Node 运行；内置插件市场 `dshmarket` | 分发给无 Node 的用户 |
+| `npx` | 首次运行联网 `npx @deepseek-ai/dsh web`；插件市场需手动 `dsh plugin --profile web add dshmarket` | 开发/自用 |
 
 通过环境变量 `DSH_LAUNCH=npx|bundled` 切换；`bundled` 模式需先执行
-`packaging/build.ps1` 把 dsh 引擎 + 便携 Node 打进 `resources/`。
+`packaging/build.ps1` 把 dsh 引擎 + 插件市场 + 便携 Node 打进 `resources/`。
 
 ## 分发
 

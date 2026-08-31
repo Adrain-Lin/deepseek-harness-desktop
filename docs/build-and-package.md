@@ -36,18 +36,24 @@ cd packaging
 - `deepseek-harness-desktop Setup *.exe`（NSIS 安装包）
 - `deepseek-harness-desktop *.exe`（便携版，如启用 -Portable）
 
-原理：`electron-builder` 把 `desktop/resources/dsh/node_modules`（bundled 引擎 + 插件）
-和 `desktop/resources/node`（便携 Node）打进 `resources/`；`main.js` 用**便携 Node**
-运行 dsh（不用 `ELECTRON_RUN_AS_NODE`，它会让 dsh web 启动后立即退出）。目标用户
-无需安装 Node。
+原理：`electron-builder` 把 `desktop/resources/dsh/node_modules`（bundled 引擎 + 插件 +
+**插件市场 dshmarket**）和 `desktop/resources/node`（便携 Node）打进 `resources/`；
+`main.js` 用**便携 Node** 运行 dsh（不用 `ELECTRON_RUN_AS_NODE`，它会让 dsh web
+启动后立即退出）。目标用户无需安装 Node。
 
-## 三、三项新功能的实现位置
+## 三、内置功能实现位置
 
 | 功能 | Host | Client |
 | --- | --- | --- |
 | 用户（key/余额/充值） | `plugin/src/host.js` 的 `/api/desktop/user`（读凭据 + 调 DeepSeek 余额接口） | `plugin/lib/client.js` 的 `UserSection` |
 | 背景图 | —（localStorage 持久化） | `BackgroundRow`（注入 `<style>` 覆盖） |
 | 关于/检查更新 | `/api/desktop/about`、`/update/check`、`/update/download` | `AboutSection`（进度条） |
+| 插件市场 | 第三方 `dshmarket` 包（随引擎 npm 安装） | `dshmarket` 的 `client/client.js`（设置 → 插件市场） |
+
+插件市场随 `build.ps1` 的 `npm install @deepseek-ai/dsh dshmarket@1.38.1` 一并装进
+引擎 `node_modules`；`main.js` 启动时把它复制进 `$DSH_HOME/profiles/node_modules/`
+（客户端 `dsh.client` 扫描器从 profile 目录解析裸包名），并在运行时 patch 里注入
+`dshmarket`（`config.allowRestart: false`，重启生命周期归 Electron 壳所有）。
 
 ## 四、注意事项与已知边界
 

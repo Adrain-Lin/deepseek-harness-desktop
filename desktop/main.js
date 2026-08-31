@@ -89,21 +89,59 @@ function ensurePluginInstalled() {
   fs.cpSync(pluginDir, dest, { recursive: true })
 }
 
+// 插件市场（dshmarket）由打包脚本 npm 装进引擎 node_modules（resources/dsh/node_modules/dshmarket）。
+function findMarketDir() {
+  const candidates = [
+    path.join(process.resourcesPath, 'dsh', 'node_modules', 'dshmarket'),
+  ]
+  return candidates.find((p) => fs.existsSync(path.join(p, 'package.json')))
+}
+
+// 把 dshmarket 复制进 $DSH_HOME/profiles/node_modules/：客户端的 dsh.client 模块扫描器
+// 以 ctx.baseUrl（DSH_HOME 配置树）为锚解析裸包名，只走 profile 目录向上查找，看不到
+// resources/dsh 里的 npm 安装副本。Host 半部仍由 loader 从引擎安装锚解析（不冲突）。
+function ensureMarketInstalled() {
+  const dest = path.join(DSH_HOME, 'profiles', 'node_modules', 'dshmarket')
+  // 已存在（如 npx 模式下用户手动 `dsh plugin add dshmarket`）则不重复复制。
+  if (fs.existsSync(path.join(dest, 'package.json'))) return true
+  const src = findMarketDir()
+  if (!src) return false // bundled 引擎里没有 dshmarket（npx 模式且未手动安装）——跳过注入
+  ensureDshHome()
+  fs.rmSync(dest, { recursive: true, force: true })
+  fs.cpSync(src, dest, { recursive: true })
+  return true
+}
+
 // 生成运行时 patch（引用插件的裸包名）。插件必须以「包」的形式存在于 dsh 引擎的
 // node_modules（打包脚本用 Copy-Item 复制进 resources/dsh/node_modules/@adrainlin/…），
 // 这样 Host 与 Client 两半都能被 loader 解析——实测 Client 扫描器只认包名、不认 file:// URL。
-function writeRuntimePatch() {
+function writeRuntimePatch(marketInstalled) {
   ensureDshHome()
   const patchPath = path.join(DSH_HOME, 'desktop-plugin.patch.yml')
-  fs.writeFileSync(patchPath, `- insert:\n    - id: desktop-plugin\n      name: '@adrainlin/dsh-desktop-plugin'\n`)
+  const lines = [
+    '- insert:',
+    '    - id: desktop-plugin',
+    "      name: '@adrainlin/dsh-desktop-plugin'",
+  ]
+  if (marketInstalled) {
+    // 插件市场：allowRestart 置 false——重启生命周期归 Electron 壳所有。市场的一键重启
+    // 会按原启动参数重拉 dsh，而壳用 `--port 0` 随机端口，重拉后窗口指向的旧端口失效。
+    lines.push(
+      '    - id: dsh-market',
+      "      name: 'dshmarket'",
+      '      config:',
+      '        allowRestart: false',
+    )
+  }
+  fs.writeFileSync(patchPath, lines.join('\n') + '\n')
   return patchPath
 }
 
-function dshArgs() {
+function dshArgs(marketInstalled) {
   // 启动器标志（--patch）必须先于 app 标志（--no-open/--host/--port），
   // 否则会被当作 web 应用的内部参数透传，导致 unknown option '--patch'。
   const args = ['web']
-  const patch = writeRuntimePatch()
+  const patch = writeRuntimePatch(marketInstalled)
   if (patch) args.push('--patch', patch)
   args.push('--no-open', '--host', HOST, '--port', String(PORT))
   return args
@@ -112,9 +150,10 @@ function dshArgs() {
 function startDsh() {
   ensureDshHome()
   ensurePluginInstalled()
+  const marketInstalled = ensureMarketInstalled()
   // 把应用版本号传给引擎，让插件「关于」页显示的版本号与 package.json 一致。
   const env = { ...process.env, DSH_HOME, DSH_DESKTOP_VERSION: DESKTOP_VERSION }
-  const args = dshArgs()
+  const args = dshArgs(marketInstalled)
   const stdio = ['ignore', 'pipe', 'pipe']
   // 引擎输出写进日志文件，便于在打包应用（无控制台）里排查。
   const logPath = path.join(DSH_HOME, 'dsh.log')
