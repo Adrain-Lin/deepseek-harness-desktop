@@ -1,4 +1,4 @@
-# packaging/build.ps1
+﻿# packaging/build.ps1
 #
 # 一键构建 + 打包桌面端。
 #
@@ -16,6 +16,19 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Invoke-Native {
+  # 运行外部命令：临时把 ErrorActionPreference 降到 Continue，避免原生命令写到 stderr 的
+  # 内容（npm 的 deprecation 警告、npx/electron-builder 的进度与警告）被 'Stop' 当致命错误。
+  # 真实失败通过 $LASTEXITCODE 判断并抛出。
+  param([scriptblock]$Command, [string]$FailMessage)
+  $ErrorActionPreference = 'Continue'
+  & $Command
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = 'Stop'
+  if ($code -ne 0) { throw "$FailMessage（exit $code）" }
+}
+
 $Root = Split-Path -Parent $PSScriptRoot          # creat_app\
 $Desktop = Join-Path $Root 'desktop'
 $Dist = Join-Path $Root 'dist'
@@ -31,11 +44,20 @@ if ($LaunchMode -eq 'bundled') {
   Write-Host "==> 安装 dsh 引擎 + 插件市场到 $DshDest ..."
   Push-Location $DshDest
   try {
-    npm init -y | Out-Null
+    Invoke-Native { npm init -y *> $null } 'npm init 失败'
     # dshmarket 随引擎一起 npm 安装（含其运行时依赖 js-yaml/undici）。锁定大版本，
     # 避免上游破坏性变更静默进入发版产物。
-    npm install @deepseek-ai/dsh dshmarket@1.38.1
-    Write-Host "==> 已安装 dsh $((Get-Content (Join-Path $DshDest 'node_modules\@deepseek-ai\dsh\package.json') | ConvertFrom-Json).version) / dshmarket $((Get-Content (Join-Path $DshDest 'node_modules\dshmarket\package.json') | ConvertFrom-Json).version)"
+    # npm 11 默认拦截 install scripts（allowScripts 白名单）。但引擎的原生依赖（koffi、
+    # node-pty）本就以预编译二进制分发：koffi 走 @koromix/koffi-* optionalDependencies、
+    # node-pty 走包内 prebuilds/，跑 install 脚本反而会触发 koffi 的 cnoke.cjs 源码
+    # 编译/下载而卡死；其余脚本（ensure-spawn-helper 的 chmod、protobufjs 的 .proto 拉取、
+    # @google/genai 的 no-op）在 Windows 上均无实际作用。故用 --ignore-scripts 全部跳过。
+    Invoke-Native { npm install @deepseek-ai/dsh dshmarket@1.38.1 --ignore-scripts } 'npm install 失败'
+    # 读版本号必须显式 -Encoding UTF8：dshmarket 的 package.json 描述含中文，PS 5.1 的
+    # Get-Content 默认按 GBK 读会把 UTF-8 字节读乱、破坏 JSON（ConvertFrom-Json 报错）。
+    $dshVersion = (Get-Content (Join-Path $DshDest 'node_modules\@deepseek-ai\dsh\package.json') -Raw -Encoding UTF8 | ConvertFrom-Json).version
+    $marketVersion = (Get-Content (Join-Path $DshDest 'node_modules\dshmarket\package.json') -Raw -Encoding UTF8 | ConvertFrom-Json).version
+    Write-Host "==> 已安装 dsh $dshVersion / dshmarket $marketVersion"
   }
   finally { Pop-Location }
 
@@ -74,7 +96,7 @@ else {
 Push-Location $Desktop
 try {
   Write-Host "==> 安装桌面壳依赖 ..."
-  npm install
+  Invoke-Native { npm install } '桌面壳依赖安装失败'
 
   Write-Host "==> 打包（electron-builder）..."
   # Electron 二进制走 npmmirror（GitHub 直连会超时）；electron-builder 自身
@@ -82,13 +104,10 @@ try {
   $env:ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/'
   $env:ELECTRON_BUILDER_BINARIES_MIRROR = 'https://npmmirror.com/mirrors/electron-builder-binaries/'
   if ($Portable) {
-    npx electron-builder --win portable
+    Invoke-Native { npx electron-builder --win portable } 'electron-builder 打包失败'
   }
   else {
-    npx electron-builder --win
-  }
-  if ($LASTEXITCODE -ne 0) {
-    throw "electron-builder 打包失败（exit $LASTEXITCODE）"
+    Invoke-Native { npx electron-builder --win } 'electron-builder 打包失败'
   }
 }
 finally { Pop-Location }
